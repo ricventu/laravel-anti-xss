@@ -19,3 +19,15 @@ it('resolves the singleton via container alias and class name', function () {
     expect($a)->toBeInstanceOf(AntiXss::class)
         ->and($b)->toBe($a);
 });
+
+it('proxies contains() through the facade', function () {
+    expect(AntiXssFacade::contains('<script>x</script>'))->toBeTrue()
+        ->and(AntiXssFacade::contains('safe'))->toBeFalse();
+});
+
+it('proxies fluent setters through the facade', function () {
+    $service = AntiXssFacade::setReplacement('[redacted]');
+
+    expect($service)->toBeInstanceOf(AntiXss::class);
+    expect(AntiXssFacade::clean('<script>x</script>'))->toContain('[redacted]');
+});

@@ -78,3 +78,76 @@ it('applies extra evil html tags from config', function () {
 
     expect($cleaned)->not->toContain('<custom-tag');
 });
+
+it('removes evil html tags via config', function () {
+    $service = new AntiXss([
+        'evil_html_tags' => [
+            'remove' => ['applet'],
+        ],
+    ]);
+
+    $cleaned = $service->clean('<applet>x</applet>');
+
+    expect($cleaned)->toContain('<applet');
+});
+
+it('applies extra evil attributes from config', function () {
+    $service = new AntiXss([
+        'evil_attributes' => [
+            'add' => ['data-evil'],
+        ],
+    ]);
+
+    $cleaned = $service->clean('<div data-evil="boom">x</div>');
+
+    expect($cleaned)->not->toContain('data-evil');
+});
+
+it('removes evil attributes via config', function () {
+    $service = new AntiXss([
+        'evil_attributes' => [
+            'remove' => ['style'],
+        ],
+    ]);
+
+    $cleaned = $service->clean('<div style="color:red">x</div>');
+
+    expect($cleaned)->toContain('style=');
+});
+
+it('honors keep_pre_and_code_tag_content config without error', function () {
+    $on = new AntiXss(['keep_pre_and_code_tag_content' => true]);
+    $off = new AntiXss(['keep_pre_and_code_tag_content' => false]);
+
+    expect($on->clean('<pre>safe</pre>'))->toBeString()
+        ->and($off->clean('<pre>safe</pre>'))->toBeString();
+});
+
+it('honors strip_4byte_chars config without error', function () {
+    $service = new AntiXss(['strip_4byte_chars' => true]);
+
+    $cleaned = $service->clean('hello world');
+
+    expect($cleaned)->toContain('hello');
+});
+
+it('exposes fluent setters returning self', function () {
+    $service = new AntiXss;
+
+    $result = $service
+        ->setReplacement('[X]')
+        ->setKeepPreAndCodeTagContent(true)
+        ->setStripe4byteChars(true)
+        ->addEvilAttributes(['data-bad'])
+        ->removeEvilAttributes(['style'])
+        ->addEvilHtmlTags(['custom-tag'])
+        ->removeEvilHtmlTags(['applet']);
+
+    expect($result)->toBe($service);
+
+    $cleaned = $service->clean('<script>a</script><custom-tag>b</custom-tag><div data-bad="x">c</div>');
+
+    expect($cleaned)->toContain('[X]')
+        ->and($cleaned)->not->toContain('<custom-tag')
+        ->and($cleaned)->not->toContain('data-bad');
+});

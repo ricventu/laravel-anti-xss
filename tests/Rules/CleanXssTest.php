@@ -40,3 +40,31 @@ it('passes the string-syntax clean_xss rule for safe input', function () {
 
     expect($validator->passes())->toBeTrue();
 });
+
+it('skips the rule object when value is not a string', function () {
+    $validator = Validator::make(
+        ['count' => 42],
+        ['count' => [new CleanXss]]
+    );
+
+    expect($validator->passes())->toBeTrue();
+});
+
+it('skips the string-syntax clean_xss rule when value is not a string', function () {
+    $validator = Validator::make(
+        ['count' => 42],
+        ['count' => 'clean_xss']
+    );
+
+    expect($validator->passes())->toBeTrue();
+});
+
+it('uses default error message for clean_xss rule', function () {
+    $validator = Validator::make(
+        ['bio' => '<script>x</script>'],
+        ['bio' => 'clean_xss']
+    );
+
+    expect($validator->fails())->toBeTrue()
+        ->and($validator->errors()->first('bio'))->toContain('malicious');
+});
