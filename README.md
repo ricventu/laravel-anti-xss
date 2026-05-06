@@ -1,68 +1,167 @@
-# :package_description
+# Laravel Anti-XSS
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/:vendor_slug/:package_slug/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/:vendor_slug/:package_slug/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/:vendor_slug/:package_slug.svg?style=flat-square)](https://packagist.org/packages/:vendor_slug/:package_slug)
-<!--delete-->
----
-This repo can be used to scaffold a Laravel package. Follow these steps to get started:
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/ricventu/laravel-anti-xss.svg?style=flat-square)](https://packagist.org/packages/ricventu/laravel-anti-xss)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/Ricventu/laravel-anti-xss/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/Ricventu/laravel-anti-xss/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/Ricventu/laravel-anti-xss/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/Ricventu/laravel-anti-xss/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/ricventu/laravel-anti-xss.svg?style=flat-square)](https://packagist.org/packages/ricventu/laravel-anti-xss)
 
-1. Press the "Use this template" button at the top of this repo to create a new repo with the contents of this skeleton.
-2. Run "php ./configure.php" to run a script that will replace all placeholders throughout all the files.
-3. Have fun creating your package.
-4. If you need help creating a package, consider picking up our <a href="https://laravelpackage.training">Laravel Package Training</a> video course.
----
-<!--/delete-->
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+A Laravel wrapper for [voku/anti-xss](https://github.com/voku/anti-xss) that ships:
 
-## Support us
-
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/:package_name.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/:package_name)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+- a singleton `AntiXss` service,
+- an `AntiXss` Facade,
+- a Blade directive `@xss(...)`,
+- a `clean_xss` validation rule (and `CleanXss` rule object),
+- an opt-in `CleanXssInput` middleware that sanitizes request input,
+- a global `anti_xss()` helper.
 
 ## Installation
 
-You can install the package via composer:
-
 ```bash
-composer require :vendor_slug/:package_slug
+composer require ricventu/laravel-anti-xss
 ```
 
-You can publish and run the migrations with:
+The service provider is auto-discovered. Publish the config file with:
 
 ```bash
-php artisan vendor:publish --tag=":package_slug-migrations"
-php artisan migrate
+php artisan vendor:publish --tag="anti-xss-config"
 ```
 
-You can publish the config file with:
+## Configuration
 
-```bash
-php artisan vendor:publish --tag=":package_slug-config"
-```
-
-This is the contents of the published config file:
+The published `config/anti-xss.php`:
 
 ```php
 return [
+    'replacement' => '',
+    'keep_pre_and_code_tag_content' => false,
+    'strip_4byte_chars' => false,
+    'evil_attributes' => [
+        'add' => [],
+        'remove' => [],
+    ],
+    'evil_html_tags' => [
+        'add' => [],
+        'remove' => [],
+    ],
+    'middleware' => [
+        'except' => ['password', 'password_confirmation'],
+    ],
 ];
 ```
 
-Optionally, you can publish the views using
-
-```bash
-php artisan vendor:publish --tag=":package_slug-views"
-```
+| Key | Purpose |
+|-----|---------|
+| `replacement` | String used in place of stripped malicious content. |
+| `keep_pre_and_code_tag_content` | Preserve content of `<pre>` and `<code>` tags. |
+| `strip_4byte_chars` | Strip 4-byte UTF-8 characters (e.g. emoji) — useful with non-`utf8mb4` databases. |
+| `evil_attributes.add` / `.remove` | Extend or shrink the default list of evil attributes. |
+| `evil_html_tags.add` / `.remove` | Extend or shrink the default list of evil tags. |
+| `middleware.except` | Field names ignored by `CleanXssInput` middleware. |
 
 ## Usage
 
+### Service / Dependency Injection
+
 ```php
-$:variable = new VendorName\Skeleton();
-echo $:variable->echoPhrase('Hello, VendorName!');
+use Ricventu\LaravelAntiXss\AntiXss;
+
+class CommentController
+{
+    public function __construct(private AntiXss $antiXss) {}
+
+    public function store(Request $request)
+    {
+        $body = $this->antiXss->clean($request->input('body'));
+        // ...
+    }
+}
+```
+
+### Facade
+
+```php
+use Ricventu\LaravelAntiXss\Facades\AntiXss;
+
+$safe = AntiXss::clean($userInput);
+
+if (AntiXss::isXssFound()) {
+    logger()->warning('XSS attempt detected.');
+}
+```
+
+### Helper
+
+```php
+$safe = anti_xss($userInput);          // sanitize directly
+$service = anti_xss();                  // get the service
+$service->setReplacement('[REDACTED]'); // tweak at runtime
+```
+
+### Validation rule
+
+Object syntax (recommended):
+
+```php
+use Ricventu\LaravelAntiXss\Rules\CleanXss;
+
+$request->validate([
+    'bio' => ['required', 'string', new CleanXss],
+]);
+```
+
+String syntax also works:
+
+```php
+$request->validate([
+    'bio' => 'required|string|clean_xss',
+]);
+```
+
+The rule **rejects** input that contains XSS rather than silently mutating it. If you prefer to clean instead, use the middleware below or call `AntiXss::clean()` in your `prepareForValidation()`.
+
+### Middleware
+
+`CleanXssInput` mirrors Laravel's built-in `TrimStrings` middleware: it walks the request payload and sanitizes every string value (excluding the keys listed in `anti-xss.middleware.except`).
+
+It is **opt-in**. Register it in your application bootstrap.
+
+Laravel 11+ (`bootstrap/app.php`):
+
+```php
+use Ricventu\LaravelAntiXss\Http\Middleware\CleanXssInput;
+
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->web(append: [
+        CleanXssInput::class,
+    ]);
+})
+```
+
+Laravel 10 (`app/Http/Kernel.php`):
+
+```php
+protected $middlewareGroups = [
+    'web' => [
+        // ...
+        \Ricventu\LaravelAntiXss\Http\Middleware\CleanXssInput::class,
+    ],
+];
+```
+
+### Blade directive
+
+```blade
+<p>@xss($comment->body)</p>
+```
+
+`@xss($value)` is equivalent to `{{ AntiXss::clean($value) }}` — it sanitizes **and** escapes the result with `e()`.
+
+### Advanced — direct access to the underlying engine
+
+```php
+AntiXss::engine()
+    ->addNeverAllowedRegex(['/very-custom-pattern/i'])
+    ->addNaughtyJavascriptPatterns(['my-tracker(']);
 ```
 
 ## Testing
@@ -73,21 +172,14 @@ composer test
 
 ## Changelog
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
-
-## Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+See [CHANGELOG](CHANGELOG.md).
 
 ## Credits
 
-- [:author_name](https://github.com/:author_username)
+- Built on top of [voku/anti-xss](https://github.com/voku/anti-xss) by Lars Moelleken.
+- [Riccardo Venturini](https://github.com/Ricventu)
 - [All Contributors](../../contributors)
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). See [LICENSE.md](LICENSE.md).
