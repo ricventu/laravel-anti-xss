@@ -2,7 +2,7 @@
 
 All notable changes to `ricventu/laravel-anti-xss` will be documented in this file.
 
-## Unreleased
+## 1.0.0 - 2026-05-06
 
 - Initial release: Facade, service singleton, `clean_xss` validation rule and
   `CleanXss` rule object, opt-in `CleanXssInput` middleware, `@xss` Blade
