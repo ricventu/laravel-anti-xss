@@ -1,11 +1,12 @@
 # Laravel Anti-XSS
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/ricventu/laravel-anti-xss.svg?style=flat-square)](https://packagist.org/packages/ricventu/laravel-anti-xss)
+[![PHP Version](https://img.shields.io/packagist/php-v/ricventu/laravel-anti-xss.svg?style=flat-square)](https://packagist.org/packages/ricventu/laravel-anti-xss)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/Ricventu/laravel-anti-xss/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/Ricventu/laravel-anti-xss/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/Ricventu/laravel-anti-xss/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/Ricventu/laravel-anti-xss/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/ricventu/laravel-anti-xss.svg?style=flat-square)](https://packagist.org/packages/ricventu/laravel-anti-xss)
 
-A Laravel wrapper for [voku/anti-xss](https://github.com/voku/anti-xss) that ships:
+A Laravel wrapper for [voku/anti-xss](https://github.com/voku/anti-xss) that provides everything you need to neutralize XSS payloads in user input:
 
 - a singleton `AntiXss` service,
 - an `AntiXss` Facade,
@@ -13,6 +14,33 @@ A Laravel wrapper for [voku/anti-xss](https://github.com/voku/anti-xss) that shi
 - a `clean_xss` validation rule (and `CleanXss` rule object),
 - an opt-in `CleanXssInput` middleware that sanitizes request input,
 - a global `anti_xss()` helper.
+
+```php
+use Ricventu\LaravelAntiXss\Facades\AntiXss;
+
+AntiXss::clean('<script>alert(1)</script>Hello');
+// => 'Hello'
+
+AntiXss::clean('<a href="javascript:alert(1)">click</a>');
+// => '<a href="">click</a>'
+
+AntiXss::clean('<img src=x onerror=alert(1)>');
+// => '<img src=x>'
+```
+
+## Why this package?
+
+- **Laravel-native.** Facade, helper, validation rule, middleware and Blade directive — drop in and use.
+- **Battle-tested core.** Wraps [voku/anti-xss](https://github.com/voku/anti-xss), an actively maintained library with an extensive list of evil tags, attributes, and JS patterns.
+- **Strict by default, flexible when needed.** Sensible config out of the box; extend or shrink the evil tag/attribute lists per project.
+- **Multiple enforcement points.** Reject (validation), clean (middleware), or sanitize on demand (service / Blade) — pick what fits your threat model.
+
+Unlike `strip_tags()` it understands obfuscated payloads (`javascript:` URIs, encoded entities, dangerous attributes). Unlike a full HTML purifier (e.g. HTMLPurifier) it is lighter and Laravel-first.
+
+## Requirements
+
+- PHP **8.3+**
+- Laravel **11**, **12**, or **13**
 
 ## Installation
 
@@ -173,6 +201,16 @@ composer test
 ## Changelog
 
 See [CHANGELOG](CHANGELOG.md).
+
+## Contributing
+
+Pull requests are welcome. For larger changes, please open an issue first to discuss the direction.
+
+Run the test suite with `composer test` and the static analysis with `composer analyse` before submitting.
+
+## Security
+
+If you discover a security vulnerability, please email **ricventu@gmail.com** instead of opening a public issue. All reports will be reviewed and addressed promptly.
 
 ## Credits
 
